@@ -1,3 +1,3 @@
-# EIF-212-Proyecto-1
-Proyecto 1 del curso SIstemas operativos 2023
+# Tareas EIF 212
+Proyectos del curso sistemas operativos 2023
 
