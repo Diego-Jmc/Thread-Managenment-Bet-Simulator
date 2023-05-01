@@ -49,19 +49,26 @@ int generateRandomInteger(int min, int max) {
 
 void * updateNumber(){
 	    
-	    while(1){
-            pthread_mutex_lock(&mutex); //closed
-            printf("-----BANCA ACTUAL DEL CASINO: €-----%d \n",bankBalance);
-            
-            numberToGuess =  generateRandomInteger(MIN_NUMBER_TO_GUESS,MAX_NUMBER_TO_GUESS);
-            
-            printf("El nuevo numero es %d \n",numberToGuess);
-            pthread_mutex_unlock(&mutex); //reopened
-            
-            sleep(3);
-    }
+    while(1){
+        pthread_mutex_lock(&mutex); //closed
+        printf("-----BANCA ACTUAL DEL CASINO: €-----%d \n",bankBalance);
+        
+        numberToGuess =  generateRandomInteger(MIN_NUMBER_TO_GUESS,10);
 
+        if(numberToGuess == 0){
+            printf("EL NUMERO ELEGIDO FUE 0 , LA BANCA SE QUEDA CON TODO \n");
+            bankBalance = 50000;
+            pthread_mutex_unlock(&mutex); //reopened
+            pthread_exit(NULL); // termina el hilo
+        }
+
+        printf("--- EL NUEVO NUMERO ESCOGIDO POR EL CROPIER ES-> %d \n",numberToGuess);
+        pthread_mutex_unlock(&mutex); //reopened
+        
+        sleep(3);
+    }
 }
+
 
 
 void *concrete(){
@@ -74,23 +81,68 @@ void *concrete(){
 
         while(1){
         pthread_mutex_lock(&mutex);
-        guessedNumber = generateRandomInteger(0,35);
-        printf("el thread %s eligio %d \n",threadName,guessedNumber);
-        if(guessedNumber == numberToGuess){
-           playerBalance = playerBalance+360;
-           printf("el jugador %s resulto ganador \n");
+        
+
+        if(playerBalance>=10){
+            playerBalance-=10;
+            bankBalance+=10;
         }else{
-           playerBalance = playerBalance -10;
-            bankBalance = bankBalance+10;
+              printf("el thread %s se quedo sin dinero \n",threadName);
+              break;
+        }
+
+        if(numberToGuess == 0){
+            pthread_mutex_unlock(&mutex);
+            pthread_exit(NULL);
+            
+            break;
         }
         
-        printf("el thread %s tiene un saldo de %d \n",threadName,playerBalance);
+
+        guessedNumber = generateRandomInteger(1,10);
+        printf("el thread %s eligio %d y tiene un saldo de-> %d \n",threadName,guessedNumber,playerBalance);
+
+        if(guessedNumber == numberToGuess){
+           playerBalance +=360;
+           bankBalance-=360;        
+                    printf("el thread %s adivino el numero y tiene un saldo de-> %d \n",threadName,playerBalance);
+
+        }     
+    
         pthread_mutex_unlock(&mutex);
         sleep(3);
         }
-    
 
 }
+
+
+
+
+void playConcreteNumber(){
+    pthread_t players[NUM_OF_PLAYERS];
+    pthread_t cropier;
+
+    sleep(1);
+
+    pthread_create(&cropier, NULL, &updateNumber, NULL);
+
+    for (int i = 0; i < NUM_OF_PLAYERS; i++) {
+        pthread_create(&(players[i]), NULL, &concrete, NULL);
+        char thread_name[17];
+        sprintf(thread_name, "Jugador->%d", i+1);
+        pthread_setname_np(players[i], thread_name);   
+    }
+    
+    
+    for (int i = 0; i < NUM_OF_PLAYERS; i++) {
+    pthread_join(players[i], NULL);
+    pthread_join(cropier, NULL);
+    }  
+
+
+    
+}
+
 
 void *parimpar(){
 
@@ -155,26 +207,6 @@ void *parimpar(){
 }
 
 
-int play(char modeGameInstructions[], void (*modeGame)(void)) {
-    int opc;
-    printf(modeGameInstructions);
-    printf("-1. Comenzar a jugar\n");
-    printf("-2. Volver al menu principal\n");
-    scanf("%d",&opc); 
-    
-    switch(opc){
-     	case 1:
-     	 (*modeGame)();
-     	   break;
-     	case 2:
-           mainMenu();
-     	  break;
-     	default:
-           printf("Opción no válida\n");
-        break;
-    }
-    
-}
 
 int showMainMenu(){
      int opc;
@@ -196,6 +228,8 @@ void playEvenOdd(){
     pthread_t players[NUM_OF_PLAYERS];
     pthread_t cropier;
 
+
+    sleep(1);
     pthread_create(&cropier, NULL, &updateNumber, NULL);
 
 
@@ -239,33 +273,19 @@ void playMartingala(){
 
 
 
-void playConcreteNumber(){
-    pthread_t players[NUM_OF_PLAYERS];
-    pthread_t cropier;
 
-    pthread_create(&cropier, NULL, &updateNumber, NULL);
-   
-
-    for (int i = 0; i < NUM_OF_PLAYERS; i++) {
-        pthread_create(&(players[i]), NULL, &concrete, NULL);
-        char thread_name[17];
-        sprintf(thread_name, "Jugador->%d", i+1);
-        pthread_setname_np(players[i], thread_name);   
-    }
-    
-    
-    for (int i = 0; i < NUM_OF_PLAYERS; i++) {
-    pthread_join(players[i], NULL);
-    pthread_join(cropier, NULL);
-    }  
-    
-}
 
 // * END DEFINITION OF GAMEMODES *
 
+
+
 void mainMenu(){
-   
-    int opcion = showMainMenu();
+
+    int playing = 1;
+
+    while(playing){
+
+     int opcion = showMainMenu();
 
      switch(opcion){
      
@@ -278,13 +298,40 @@ void mainMenu(){
      	case 3:
      	   play(MARTINGALA_INSTRUCTIONS,playMartingala);
      	case 4:
-     	     printf("Salir del sistema\n");
+
      	default:
            printf("Opción no válida\n");
         break;
-   } 
+     }
+
+    }
+   
+ 
 
 }
+
+int play(char modeGameInstructions[], void (*modeGame)(void)) {
+    int opc;
+    printf("%s",modeGameInstructions);
+    printf("-1. Comenzar a jugar\n");
+    printf("-2. Volver al menu principal\n");
+    scanf("%d",&opc); 
+    
+    switch(opc){
+     	case 1:
+     	 (*modeGame)();
+     	   break;
+     	case 2:
+           mainMenu();
+     	  break;
+     	default:
+           printf("Opción no válida\n");
+        break;
+    }
+    
+}
+
+
 int main(){
     
     mainMenu();
@@ -292,3 +339,4 @@ int main(){
 
     return 0;
 }
+
