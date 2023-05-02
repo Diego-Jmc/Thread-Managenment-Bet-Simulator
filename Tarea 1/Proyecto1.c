@@ -10,7 +10,7 @@
 #define EVEN_ODD_INSTRUCTIONS  "Apuestas par/impar\nReglas\n-Cada jugador apuesta 10 euros\n-A los ganadores se les brinda 20 euros de ganancia\n"
 
 
-#define MARTINGALA_INSTRUCTIONS  "Modalidad de apuesta Matingala!\nReglas\n-Cada jugador comienza una partida con 10 euros\n -Si no hay ganador, en la siguiente partida el valor de apuesta se duplica\n-A el ganador se le incrementara su saldo en 360 euros\n"
+#define MARTINGALA_INSTRUCTIONS  "Modalidad de apuesta Matingala!\n Reglas \n-Cada jugador comienza una partida con 10 euros\n -Si no hay ganador, en la siguiente partida el valor de apuesta se duplica\n -A el ganador se le incrementara su saldo en 360 euros\n"
 
 
 #define CONCRETE_NUMBER_INSTRUCTIONS "Instructions for concrete number\n" // <- to complete 
@@ -31,7 +31,7 @@ int bankBalance = 50000;
 int numberToGuess;
 int playerBalance = 1000;
 int guessedNumber = 0;
-
+int finalizado = 0;
 
 
 // locker initialization
@@ -58,6 +58,14 @@ void * updateNumber(){
         if(numberToGuess == 0){
             printf("EL NUMERO ELEGIDO FUE 0 , LA BANCA SE QUEDA CON TODO \n");
             bankBalance = 50000;
+            pthread_mutex_unlock(&mutex); //reopened
+            pthread_exit(NULL); // termina el hilo
+        }
+        
+        else if(finalizado == 4){
+            printf("Todos los jugadores se han quedado sin dinero, partida terminada\n");
+            
+            finalizado = 0;
             pthread_mutex_unlock(&mutex); //reopened
             pthread_exit(NULL); // termina el hilo
         }
@@ -110,7 +118,7 @@ void *concrete(){
         }     
     
         pthread_mutex_unlock(&mutex);
-        sleep(3);
+        usleep(3100000);
         }
 
 }
@@ -122,8 +130,7 @@ void playConcreteNumber(){
     pthread_t players[NUM_OF_PLAYERS];
     pthread_t cropier;
 
-    sleep(1);
-
+    
     pthread_create(&cropier, NULL, &updateNumber, NULL);
 
     for (int i = 0; i < NUM_OF_PLAYERS; i++) {
@@ -155,6 +162,22 @@ void *parimpar(){
     while(1){
     pthread_mutex_lock(&mutex);
     guessedNumber =  generateRandomInteger(1,3);
+    
+     if(playerBalance>=10){
+            playerBalance-=10;
+            bankBalance+=10;
+        }else{
+              printf("el thread %s se quedo sin dinero \n",threadName);
+              break;
+        }
+
+        if(numberToGuess == 0){
+            pthread_mutex_unlock(&mutex);
+            pthread_exit(NULL);
+            
+            break;
+        }
+        
     
     
     //al azar el sistema le dice al jugador si va a jugar par o impar.
@@ -189,16 +212,14 @@ void *parimpar(){
        printf("tiene un saldo de %d\n",playerBalance);
     }
     else{
-       
-       playerBalance = playerBalance-20;
-       bankBalance = bankBalance+10;
+      
        printf("el jugador %s ha PERDIDO ",threadName);
         
        printf("tiene un saldo de %d\n",playerBalance);
     }
     
         pthread_mutex_unlock(&mutex);
-        sleep(3);
+        usleep(3100000);
        
        
     }
@@ -206,6 +227,59 @@ void *parimpar(){
 
 }
 
+
+
+void *Martingala(){
+
+    int playerBalance = 1000;
+    int apuesta = 10;
+    int guessedNumber;
+    char threadName[16];
+    pthread_t thread_id = pthread_self();
+    pthread_getname_np(thread_id, threadName, 16);
+
+        while(1){
+        pthread_mutex_lock(&mutex);
+        
+       
+             
+        if(numberToGuess == 0){
+            pthread_mutex_unlock(&mutex);
+            pthread_exit(NULL);
+            
+            break;
+        }
+        
+         
+        if(playerBalance < 10 || playerBalance < apuesta ){
+          pthread_mutex_unlock(&mutex);
+            printf("el jugador %s se quedo sin dinero \n",threadName);
+            finalizado = finalizado+1;
+            pthread_exit(NULL);
+            break;
+        
+        }else{
+        
+         guessedNumber = generateRandomInteger(1,35);
+         guessedNumber = generateRandomInteger(1,10);
+        printf("el jugador %s eligio %d y tiene un saldo de-> %d \n",threadName,guessedNumber,playerBalance);
+        if(guessedNumber == numberToGuess){
+           playerBalance = playerBalance+360;
+            printf("el jugador %s eligio %d, adivino el numero y tiene un saldo de-> %d \n",threadName, guessedNumber,playerBalance);
+        }else{
+            playerBalance = playerBalance -apuesta;
+            bankBalance = bankBalance+apuesta;
+            apuesta = apuesta*2;
+        }
+        
+        
+        
+        pthread_mutex_unlock(&mutex);
+        usleep(3100000);
+        }
+    }
+    
+   }
 
 
 int showMainMenu(){
@@ -246,18 +320,17 @@ void playEvenOdd(){
     }
 }
 
-//Martingala no implementada todavia, tiene como base el primer modo de juego.
 
 
 void playMartingala(){
-    pthread_t players[NUM_OF_PLAYERS];
+     pthread_t players[NUM_OF_PLAYERS];
     pthread_t cropier;
     
     
     pthread_create(&cropier, NULL, &updateNumber, NULL);
     
     for (int i = 0; i < NUM_OF_PLAYERS; i++) {
-        pthread_create(&(players[i]), NULL, &concrete, NULL);
+        pthread_create(&(players[i]), NULL, &Martingala, NULL);
         char thread_name[17];
         sprintf(thread_name, "Jugador->%d", i+1);
         pthread_setname_np(players[i], thread_name);   
@@ -265,10 +338,8 @@ void playMartingala(){
     
     for (int i = 0; i < NUM_OF_PLAYERS; i++) {
     pthread_join(players[i], NULL);
-    
-    }
-    
     pthread_join(cropier, NULL);
+    }
 }
 
 
@@ -297,8 +368,10 @@ void mainMenu(){
      	  break;
      	case 3:
      	   play(MARTINGALA_INSTRUCTIONS,playMartingala);
+     	   break;
      	case 4:
-
+             exit(1);
+             break;
      	default:
            printf("Opción no válida\n");
         break;
@@ -339,4 +412,3 @@ int main(){
 
     return 0;
 }
-
