@@ -31,12 +31,7 @@ int generateRandomInteger(int min, int max) {
     
 }
 
-char [] getThreadName(){
-    char threadName[16];
-    pthread_t thread_id = pthread_self();
-    pthread_getname_np(thread_id, threadName, 16);
-    return threadName;
-}
+
 
 void * updateNumber(){
 	    
@@ -59,6 +54,7 @@ void * updateNumber(){
             finalizado = 0;
             pthread_mutex_unlock(&mutex); //reopened
             pthread_exit(NULL); // termina el hilo
+            system("cls");
         }
 
         printf("--- EL NUEVO NUMERO ESCOGIDO POR EL CROPIER ES-> %d \n",numberToGuess);
@@ -72,7 +68,9 @@ void *concrete(){
 
     int playerBalance = 1000;
     int guessedNumber;
-    char threadName[16] = getThreadName();
+    char threadName[16];
+    pthread_t thread_id = pthread_self();
+    pthread_getname_np(thread_id, threadName, 16);
 
         while(1){
         pthread_mutex_lock(&mutex);
@@ -113,7 +111,10 @@ void *evenOdd(){
 
     int guessedNumber,even;
     int playerBalance = 1000;
-    char threadName[16] = getThreadName();
+    char threadName[16];
+    pthread_t thread_id = pthread_self();
+    pthread_getname_np(thread_id, threadName, 16);
+    
     
     while(1){
     pthread_mutex_lock(&mutex);
@@ -137,11 +138,11 @@ void *evenOdd(){
 
     //al azar el sistema le dice al jugador si va a jugar par o impar.
     if(guessedNumber % 2 == 0){
-        printf("el jugador %s ha dicho que iba a salir par \n",threadName);
+        printf("el jugador %s ha escogido par \n",threadName);
         even = 1;
     }
     else{
-       printf("el jugador %s ha dicho que iba a salir impar\n",threadName);
+       printf("el jugador %s ha escogido impar\n",threadName);
        even = 0;
     }
 
@@ -149,7 +150,10 @@ void *evenOdd(){
     if(even && numberToGuess %2 == 0 || !even && numberToGuess%2 != 0){
         playerBalance = playerBalance+20;       
         bankBalance = bankBalance-10;
-        printf("el jugador %s ha GANADO y tiene un saldo de -> %d\n",threadName,playerBalance);
+        printf("el jugador %s ha GANADO,tiene un saldo de -> %d\n",threadName,playerBalance);
+    }
+    else{
+     printf("el jugador %s ha PERDIDO,tiene un saldo de -> %d\n",threadName,playerBalance);
     }
        
         pthread_mutex_unlock(&mutex);
@@ -162,7 +166,9 @@ void *evenOdd(){
 
 void *martingala(){
     int playerBalance = 1000,apuesta = 10,guessedNumber;
-    char threadName[16] = getThreadName();
+    char threadName[16];
+    pthread_t thread_id = pthread_self();
+    pthread_getname_np(thread_id, threadName, 16);
         while(1){
         pthread_mutex_lock(&mutex);
           
@@ -211,6 +217,7 @@ int showMainMenu(){
      printf("Elige tu opcion!\n");
      scanf("%d",&opc);
      return opc;
+ 
 }
 
 
@@ -240,7 +247,6 @@ void play(char modeGameInstructions[], void (*modeGame(void))) {
     printf("-1. Comenzar a jugar\n");
     printf("-2. Volver al menu principal\n");
     scanf("%d",&opc); 
-    
     switch(opc){
      	case 1:
      	 (*modeGame)();
