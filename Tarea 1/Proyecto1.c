@@ -5,6 +5,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/prctl.h>
 #define EVEN_ODD_INSTRUCTIONS  "Apuestas par/impar\nReglas\n-Cada jugador apuesta 10 euros\n-A los ganadores se les brinda 20 euros de ganancia\n"
 #define MARTINGALA_INSTRUCTIONS  "Modalidad de apuesta Matingala!\n Reglas \n-Cada jugador comienza una partida con 10 euros\n -Si no hay ganador, en la siguiente partida el valor de apuesta se duplica\n -A el ganador se le incrementara su saldo en 360 euros\n"
 #define CONCRETE_NUMBER_INSTRUCTIONS "Jugar a numero concreto\n cada jugador apuesta 10 euras y gana 360 si atina \n Si el jugador se queda sin dinero pierde automaticamente\n"
@@ -19,18 +20,24 @@ int playerBalance = 1000;
 int guessedNumber = 0;
 int finalizado = 0;
 
+/*
+
+    Tarea 1 Sistemas operativos
+        **INTEGRANTES**
+   Diego Jiménez Chamorro 
+   Dylan Molina Obando 
+   Juan Daniel Zuñiga Hernadez 
+   Luis Torres Villalobos
+
+*/
+
+
 // locker initialization
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
 // generate a random integer
 int generateRandomInteger(int min, int max) {
-
-    int rango = max - min +1;
-    
-    return rand() % rango+min; 
-    
+    return rand() % (max - min +1)+min;  
 }
-
 
 
 void * updateNumber(){
@@ -76,9 +83,9 @@ void *concrete(){
         pthread_mutex_lock(&mutex);
         
 
-        if(playerBalance>=10){
-            playerBalance-=10;
-            bankBalance+=10;
+        if(playerBalance>=BET){
+            playerBalance-=BET;
+            bankBalance+=BET;
         }else{
               printf("el thread %s se quedo sin dinero \n",threadName);
               break;
@@ -95,8 +102,8 @@ void *concrete(){
         printf("el thread %s eligio %d y tiene un saldo de-> %d \n",threadName,guessedNumber,playerBalance);
 
         if(guessedNumber == numberToGuess){
-           playerBalance +=360;
-           bankBalance-=360;        
+           playerBalance +=EARNIGS;
+           bankBalance-=EARNIGS;        
                     printf("el thread %s adivino el numero y tiene un saldo de-> %d \n",threadName,playerBalance);
 
         }     
@@ -120,9 +127,9 @@ void *evenOdd(){
     pthread_mutex_lock(&mutex);
     guessedNumber =  generateRandomInteger(1,3);
     
-     if(playerBalance>=10){
-            playerBalance-=10;
-            bankBalance+=10;
+     if(playerBalance>=BET){
+            playerBalance-=BET;
+            bankBalance+=BET;
       }else{
               printf("el thread %s se quedo sin dinero \n",threadName);
               break;
@@ -149,20 +156,18 @@ void *evenOdd(){
     // check if the chosen number was even or odd . if then the players wins
     if(even && numberToGuess %2 == 0 || !even && numberToGuess%2 != 0){
         playerBalance = playerBalance+20;       
-        bankBalance = bankBalance-10;
+        bankBalance = bankBalance-BET;
         printf("el jugador %s ha GANADO,tiene un saldo de -> %d\n",threadName,playerBalance);
     }
-    else{
+    else
      printf("el jugador %s ha PERDIDO,tiene un saldo de -> %d\n",threadName,playerBalance);
-    }
-       
+     
         pthread_mutex_unlock(&mutex);
         usleep(3100000);
       
     }
     
 }
-
 
 void *martingala(){
     int playerBalance = 1000,apuesta = 10,guessedNumber;
@@ -205,7 +210,6 @@ void *martingala(){
     
    }
 
-
 int showMainMenu(){
      int opc;
      printf("Las mejores apuestas aqui!\n");
@@ -220,68 +224,59 @@ int showMainMenu(){
  
 }
 
+void setTimer(){
+    int count = 3;
 
-void * getGameMode(void *(*game)(void *)){
+    while(count>=1){
+        printf("*** %d *** \n",count);
+        sleep(1);
+        count--;
+    }
+
+}
+
+void * startGame(void *(*game)(void *), char gameInstructions[]){
+    printf("%s",gameInstructions);
+    setTimer();
     pthread_t players[NUM_OF_PLAYERS];
     pthread_t cropier;
-
-    sleep(1);
     pthread_create(&cropier, NULL, updateNumber, NULL);
 
-    for (int i = 0; i < NUM_OF_PLAYERS; i++) {
-        pthread_create(&(players[i]), NULL, game, NULL);
-        char thread_name[17];
-        sprintf(thread_name, "Jugador->%d", i+1);
-        pthread_setname_np(players[i], thread_name);
-    }
+ for (int i = 0; i < NUM_OF_PLAYERS; i++) {
+    pthread_t player;
+    char thread_name[17];
+    sprintf(thread_name, "Jugador (%d)", i+1);
+    pthread_create(&player, NULL, game, NULL);
+    pthread_setname_np(player, thread_name);
+    players[i] = player;
+}
     
     for (int i = 0; i < NUM_OF_PLAYERS; i++) {
-    pthread_join(players[i], NULL);
-    pthread_join(cropier, NULL);
+        pthread_join(players[i], NULL);
     }
+    pthread_join(cropier, NULL);
 }
 
-void play(char modeGameInstructions[], void (*modeGame(void))) {
-    int opc;
-    printf("%s",modeGameInstructions);
-    printf("-1. Comenzar a jugar\n");
-    printf("-2. Volver al menu principal\n");
-    scanf("%d",&opc); 
-    switch(opc){
-     	case 1:
-     	 (*modeGame)();
-     	   break;
-     	case 2:
-        return;
-     	  break;
-     	default:
-           printf("Opción no válida\n");
-        break;
-    }
-    
-}
 
 void mainMenu(){
 
     int playing = 1;
 
     while(playing){
-
      int opcion = showMainMenu();
-
-     switch(opcion){
-     
+     system("clear");
+     switch(opcion){ 
      	case 1:
-        play(CONCRETE_NUMBER_INSTRUCTIONS,getGameMode(concrete));
+        startGame(concrete,CONCRETE_NUMBER_INSTRUCTIONS);
      	   break;
      	case 2:
-        play(EVEN_ODD_INSTRUCTIONS,getGameMode(evenOdd));
+      startGame(evenOdd,EVEN_ODD_INSTRUCTIONS);
      	  break;
      	case 3:
-     	   play(MARTINGALA_INSTRUCTIONS,getGameMode(martingala));
+           startGame(martingala,MARTINGALA_INSTRUCTIONS);
      	   break;
      	case 4:
-             exit(1);
+             playing = 0;
              break;
      	default:
            printf("Opción no válida\n");
@@ -289,10 +284,9 @@ void mainMenu(){
      }
 
     }
-
 }
 
 int main(){
     mainMenu();
     return 0;
-}
+}    
